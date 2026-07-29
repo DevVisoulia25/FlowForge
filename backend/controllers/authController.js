@@ -7,10 +7,13 @@ const generateToken = (res, userId) => {
     expiresIn: '7d'
   });
 
+  // Cross-domain cookie support for Vercel -> Render HTTPS requests
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+
   res.cookie('token', token, {
     httpOnly: true,
-    secure: false, // Set to true in production with HTTPS
-    sameSite: 'lax',
+    secure: isProduction ? true : false,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 
@@ -109,8 +112,11 @@ const loginUser = async (req, res, next) => {
 // @route POST /api/auth/logout
 // @access Public
 const logoutUser = (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
   res.cookie('token', '', {
     httpOnly: true,
+    secure: isProduction ? true : false,
+    sameSite: isProduction ? 'none' : 'lax',
     expires: new Date(0)
   });
   res.json({ message: 'Logged out successfully' });

@@ -115,10 +115,11 @@ const getOrders = async (req, res, next) => {
 
     // Role-based restriction: Department users only see work assigned to their department
     if (req.user.role === 'department') {
-      if (!req.user.departmentId) {
+      const userDeptId = req.user.departmentId?._id || req.user.departmentId;
+      if (!userDeptId) {
         return res.status(400).json({ message: 'User has no assigned department' });
       }
-      query.currentDepartmentId = req.user.departmentId;
+      query.currentDepartmentId = userDeptId;
     } else if (departmentId) {
       query.currentDepartmentId = departmentId;
     }
@@ -196,11 +197,18 @@ const completeStage = async (req, res, next) => {
     }
 
     // Verify department permission if user is a department role
-    if (req.user.role === 'department' && String(req.user.departmentId._id || req.user.departmentId) !== String(order.currentDepartmentId._id)) {
-      return res.status(403).json({ message: 'Your department is not assigned to this order' });
+    if (req.user.role === 'department') {
+      const userDeptId = String(req.user.departmentId?._id || req.user.departmentId || '');
+      const orderDeptId = String(order.currentDepartmentId?._id || order.currentDepartmentId || '');
+      if (userDeptId !== orderDeptId) {
+        return res.status(403).json({ message: 'Your department is not assigned to this order' });
+      }
     }
 
     const currentStage = order.currentStageId;
+    if (!currentStage) {
+      return res.status(400).json({ message: 'Current stage configuration not found' });
+    }
 
     // Update active history item
     if (order.stageHistory && order.stageHistory.length > 0) {
@@ -230,7 +238,7 @@ const completeStage = async (req, res, next) => {
         stageId: nextStage._id,
         stageName: nextStage.name,
         departmentId: nextDept._id,
-        departmentName: nextDept.name,
+        departmentName: nextDept ? nextDept.name : 'Dept',
         enteredAt: new Date(),
         remarks: ''
       });
@@ -244,19 +252,21 @@ const completeStage = async (req, res, next) => {
         userId: req.user._id,
         userName: req.user.name,
         departmentId: order.currentDepartmentId,
-        departmentName: currentStage.departmentId ? currentStage.departmentId.name : 'Dept',
-        details: `Stage '${currentStage.name}' completed. Order moved to '${nextStage.name}' (${nextDept.name})`
+        departmentName: order.currentDepartmentId?.name || 'Dept',
+        details: `Stage '${currentStage.name}' completed. Order moved to '${nextStage.name}' (${nextDept ? nextDept.name : ''})`
       });
 
       // Notification to next department
-      await Notification.create({
-        companyId: req.companyId,
-        recipientRole: 'department',
-        recipientDepartmentId: nextDept._id,
-        title: 'Order Received',
-        message: `Order #${order.orderNumber} moved from ${currentStage.name} to ${nextStage.name}`,
-        type: 'STAGE_COMPLETED'
-      });
+      if (nextDept) {
+        await Notification.create({
+          companyId: req.companyId,
+          recipientRole: 'department',
+          recipientDepartmentId: nextDept._id,
+          title: 'Order Received',
+          message: `Order #${order.orderNumber} moved from ${currentStage.name} to ${nextStage.name}`,
+          type: 'STAGE_COMPLETED'
+        });
+      }
     } else {
       // Final stage completed! Mark order completed
       order.status = 'Completed';

@@ -1,18 +1,22 @@
 import React from 'react';
-import { Check, Clock, CircleDot, UserCheck } from 'lucide-react';
+import { Check, CircleDot, UserCheck } from 'lucide-react';
 
 const StageStepper = ({ stages = [], orderHistory = [], currentStageId }) => {
+  const currentIdStr = String(currentStageId?._id || currentStageId || '');
+
   return (
     <div className="w-full py-4">
       <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-2">
         {stages.map((stage, idx) => {
-          // Find matching history item
+          const stageIdStr = String(stage._id);
+
+          // Find matching history item safely
           const historyItem = orderHistory.find(
-            (h) => String(h.stageId) === String(stage._id)
+            (h) => String(h.stageId?._id || h.stageId || '') === stageIdStr
           );
 
-          const isCurrent = String(stage._id) === String(currentStageId?._id || currentStageId);
-          const isCompleted = historyItem?.completedAt;
+          const isCurrent = stageIdStr === currentIdStr;
+          const isCompleted = Boolean(historyItem?.completedAt);
 
           return (
             <div

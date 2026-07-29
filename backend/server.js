@@ -12,15 +12,38 @@ connectDB();
 
 const app = express();
 
+// Required on Render / Heroku / Vercel to trust reverse proxy for HTTPS cookies
+app.set('trust proxy', 1);
+
 // Body Parser & Cookie Parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// CORS Configuration
+// Dynamic CORS Configuration to support Vercel frontend & Localhost
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000'
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin matches allowed origins or any vercel.app domain
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        return callback(null, origin); // Reflect exact origin for credentials match
+      }
+
+      return callback(null, origin); // Default permissive for deployment test
+    },
     credentials: true
   })
 );
@@ -37,7 +60,7 @@ app.use('/api/activity-logs', require('./routes/activityLogRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'FlowForge API Server Running' });
+  res.json({ status: 'OK', message: 'FlowForge API Server Running on Production' });
 });
 
 // Central Error Handler

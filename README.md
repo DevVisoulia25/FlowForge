@@ -2,7 +2,7 @@
 
 FlowForge is a lightweight, generic, multi-tenant production tracking web application designed for small and medium manufacturing businesses (PCB, Furniture, Textile, Printing, Packaging, Metal Fabrication, Food Processing, Plastics, Electronics, etc.).
 
-## 🚀 Features
+## Features
 
 - **Multi-Step Setup Wizard**: 4-step onboarding for company profile, custom departments, reorderable production stages, and department logins.
 - **Company Owner Dashboard**: KPI metrics, department active workload breakdown, floor activity audit stream, quick order creation, and CSV export.
@@ -13,7 +13,7 @@ FlowForge is a lightweight, generic, multi-tenant production tracking web applic
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: React (Vite), JavaScript, Tailwind CSS, React Router v6, Axios, Lucide Icons.
 - **Backend**: Node.js, Express.js (MVC Pattern).
@@ -22,7 +22,7 @@ FlowForge is a lightweight, generic, multi-tenant production tracking web applic
 
 ---
 
-## 💻 Getting Started Locally
+## Getting Started Locally
 
 ### Prerequisites
 - Node.js (v18+)
@@ -57,7 +57,7 @@ npm run dev
 
 ---
 
-## 🔐 Demo Credentials
+## Demo Credentials
 
 | Role | Username | Password |
 |---|---|---|
@@ -69,5 +69,5 @@ npm run dev
 
 ---
 
-## 📄 License
+## License
 ISC

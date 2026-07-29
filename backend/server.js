@@ -20,7 +20,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Dynamic CORS Configuration to support Vercel frontend & Localhost
+// Dynamic CORS Configuration
 const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:5173',
@@ -30,19 +30,15 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, Postman, server-to-server)
       if (!origin) return callback(null, true);
-      
-      // Check if origin matches allowed origins or any vercel.app domain
       if (
         allowedOrigins.includes(origin) ||
         origin.endsWith('.vercel.app') ||
         process.env.NODE_ENV !== 'production'
       ) {
-        return callback(null, origin); // Reflect exact origin for credentials match
+        return callback(null, origin);
       }
-
-      return callback(null, origin); // Default permissive for deployment test
+      return callback(null, origin);
     },
     credentials: true
   })
@@ -57,6 +53,8 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/activity-logs', require('./routes/activityLogRoutes'));
+app.use('/api/account', require('./routes/accountRoutes'));
+app.use('/api/revert-requests', require('./routes/revertRequestRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

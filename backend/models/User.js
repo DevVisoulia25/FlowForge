@@ -37,8 +37,8 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index to guarantee username uniqueness per company
-userSchema.index({ companyId: 1, username: 1 }, { unique: true });
+// Global unique index on username across entire application
+userSchema.index({ username: 1 }, { unique: true });
 
 // Hash password before saving if modified
 userSchema.pre('save', async function () {

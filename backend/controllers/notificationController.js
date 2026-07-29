@@ -8,22 +8,25 @@ const getNotifications = async (req, res, next) => {
     let query = { companyId: req.companyId };
 
     if (req.user.role === 'department') {
+      const deptId = req.user.departmentId?._id || req.user.departmentId;
       query.$or = [
         { recipientRole: 'all' },
-        { recipientRole: 'department', recipientDepartmentId: req.user.departmentId }
+        { recipientRole: 'department', recipientDepartmentId: deptId },
+        { recipient: req.user._id }
       ];
     } else {
       query.$or = [
         { recipientRole: 'all' },
-        { recipientRole: 'owner' }
+        { recipientRole: 'owner' },
+        { recipient: req.user._id }
       ];
     }
 
     const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
-      .limit(30);
+      .limit(50);
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = notifications.filter((n) => !n.isRead).length;
 
     res.json({ notifications, unreadCount });
   } catch (error) {
@@ -31,7 +34,7 @@ const getNotifications = async (req, res, next) => {
   }
 };
 
-// @desc Mark notification as read
+// @desc Mark single notification as read
 // @route PUT /api/notifications/:id/read
 // @access Private
 const markAsRead = async (req, res, next) => {
@@ -47,7 +50,37 @@ const markAsRead = async (req, res, next) => {
   }
 };
 
+// @desc Mark all notifications as read for user/company context
+// @route PUT /api/notifications/read-all
+// @access Private
+const markAllAsRead = async (req, res, next) => {
+  try {
+    let query = { companyId: req.companyId, isRead: false };
+
+    if (req.user.role === 'department') {
+      const deptId = req.user.departmentId?._id || req.user.departmentId;
+      query.$or = [
+        { recipientRole: 'all' },
+        { recipientRole: 'department', recipientDepartmentId: deptId },
+        { recipient: req.user._id }
+      ];
+    } else {
+      query.$or = [
+        { recipientRole: 'all' },
+        { recipientRole: 'owner' },
+        { recipient: req.user._id }
+      ];
+    }
+
+    await Notification.updateMany(query, { isRead: true });
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getNotifications,
-  markAsRead
+  markAsRead,
+  markAllAsRead
 };

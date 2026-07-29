@@ -7,14 +7,13 @@ const generateToken = (res, userId) => {
     expiresIn: '7d'
   });
 
-  // Cross-domain cookie support for Vercel -> Render HTTPS requests
   const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
 
   res.cookie('token', token, {
     httpOnly: true,
     secure: isProduction ? true : false,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
   return token;
@@ -31,6 +30,14 @@ const registerCompany = async (req, res, next) => {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
+    const cleanUsername = username.toLowerCase().trim();
+
+    // Global unique username validation
+    const existingUser = await User.findOne({ username: cleanUsername });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Username already exists.' });
+    }
+
     // Create Company
     const company = await Company.create({
       name: companyName,
@@ -45,7 +52,7 @@ const registerCompany = async (req, res, next) => {
     const owner = await User.create({
       companyId: company._id,
       name: ownerName,
-      username: username.toLowerCase().trim(),
+      username: cleanUsername,
       password,
       role: 'owner'
     });
@@ -63,6 +70,9 @@ const registerCompany = async (req, res, next) => {
       company
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Username already exists.' });
+    }
     next(error);
   }
 };

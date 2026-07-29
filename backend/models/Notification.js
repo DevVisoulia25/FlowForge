@@ -7,6 +7,11 @@ const notificationSchema = new mongoose.Schema(
       ref: 'Company',
       required: true
     },
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     recipientRole: {
       type: String,
       enum: ['owner', 'department', 'all'],
@@ -27,7 +32,18 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['NEW_ORDER', 'STAGE_COMPLETED', 'ORDER_COMPLETED', 'SETUP_COMPLETED'],
+      enum: [
+        'NEW_ORDER',
+        'STAGE_COMPLETED',
+        'ORDER_COMPLETED',
+        'SETUP_COMPLETED',
+        'REVERT_REQUESTED',
+        'REVERT_APPROVED',
+        'REVERT_REJECTED',
+        'DEPT_ACCOUNT_UPDATED',
+        'DEADLINE_APPROACHING',
+        'DEADLINE_MISSED'
+      ],
       default: 'STAGE_COMPLETED'
     },
     isRead: {

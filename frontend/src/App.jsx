@@ -16,6 +16,8 @@ import StageManagement from './pages/StageManagement';
 import CompanyProfile from './pages/CompanyProfile';
 import Reports from './pages/Reports';
 import ActivityLogs from './pages/ActivityLogs';
+import AccountSettings from './pages/AccountSettings';
+import RevertRequests from './pages/RevertRequests';
 
 const HomeRedirect = () => {
   const { user, isSetupComplete, loading } = useAuth();
@@ -51,6 +53,8 @@ function App() {
             <Route path="/company-profile" element={<CompanyProfile />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
+            <Route path="/account-settings" element={<AccountSettings />} />
+            <Route path="/revert-requests" element={<RevertRequests />} />
           </Route>
 
           {/* Department Protected Routes */}

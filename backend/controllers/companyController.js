@@ -12,6 +12,20 @@ const completeSetup = async (req, res, next) => {
     const companyId = req.companyId;
     const { companyInfo, departments, stages, departmentLogins } = req.body;
 
+    // Validate global unique usernames for department logins before inserting
+    for (const loginData of departmentLogins) {
+      if (loginData.username) {
+        const cleanUser = loginData.username.toLowerCase().trim();
+        const existing = await User.findOne({
+          username: cleanUser,
+          companyId: { $ne: companyId }
+        });
+        if (existing) {
+          return res.status(400).json({ message: 'Username already exists.' });
+        }
+      }
+    }
+
     // 1. Update Company Information
     if (companyInfo) {
       await Company.findByIdAndUpdate(companyId, {
@@ -31,7 +45,7 @@ const completeSetup = async (req, res, next) => {
     await User.deleteMany({ companyId, role: 'department' });
 
     // 2. Create Departments
-    const deptMap = {}; // temp name -> Department Object
+    const deptMap = {};
     for (let i = 0; i < departments.length; i++) {
       const deptData = departments[i];
       const dept = await Department.create({
@@ -89,6 +103,9 @@ const completeSetup = async (req, res, next) => {
 
     res.json({ message: 'Setup completed successfully', company });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Username already exists.' });
+    }
     next(error);
   }
 };

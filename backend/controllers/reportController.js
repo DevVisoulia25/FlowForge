@@ -1,6 +1,90 @@
 const Order = require('../models/Order');
 const Department = require('../models/Department');
 const ActivityLog = require('../models/ActivityLog');
+const RevertRequest = require('../models/RevertRequest');
+const Notification = require('../models/Notification');
+
+// Helper to monitor order deadlines & create notifications if approaching/missed
+const processDeadlineMonitoring = async (companyId) => {
+  try {
+    const activeOrders = await Order.find({
+      companyId,
+      status: { $in: ['In Progress', 'Delayed', 'Pending Revert Approval'] }
+    });
+
+    const now = new Date();
+
+    for (const order of activeOrders) {
+      if (!order.dueDate) continue;
+
+      const due = new Date(order.dueDate);
+      const diffMs = due.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      // Deadline passed (Overdue)
+      if (diffHours < 0 && order.status !== 'Completed' && order.status !== 'Delayed') {
+        order.status = 'Delayed';
+        await order.save();
+
+        // Check if deadline missed notification already sent recently
+        const existing = await Notification.findOne({
+          companyId,
+          title: `Deadline Missed: #${order.orderNumber}`,
+          createdAt: { $gte: new Date(now.getTime() - 12 * 60 * 60 * 1000) }
+        });
+
+        if (!existing) {
+          await Notification.create({
+            companyId,
+            recipientRole: 'all',
+            recipientDepartmentId: order.currentDepartmentId,
+            title: `Deadline Missed: #${order.orderNumber}`,
+            message: `Order #${order.orderNumber} (${order.productName}) has passed its due date (${due.toLocaleDateString()})!`,
+            type: 'DEADLINE_MISSED'
+          });
+        }
+      } else if (diffHours > 0 && diffHours <= 24) {
+        // Less than 24h remaining
+        const existing = await Notification.findOne({
+          companyId,
+          title: `Urgent Deadline (< 24h): #${order.orderNumber}`,
+          createdAt: { $gte: new Date(now.getTime() - 12 * 60 * 60 * 1000) }
+        });
+
+        if (!existing) {
+          await Notification.create({
+            companyId,
+            recipientRole: 'all',
+            recipientDepartmentId: order.currentDepartmentId,
+            title: `Urgent Deadline (< 24h): #${order.orderNumber}`,
+            message: `Order #${order.orderNumber} is due in less than 24 hours (${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})!`,
+            type: 'DEADLINE_APPROACHING'
+          });
+        }
+      } else if (diffHours > 24 && diffHours <= 48) {
+        // Less than 48h remaining
+        const existing = await Notification.findOne({
+          companyId,
+          title: `Deadline Approaching (< 48h): #${order.orderNumber}`,
+          createdAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) }
+        });
+
+        if (!existing) {
+          await Notification.create({
+            companyId,
+            recipientRole: 'all',
+            recipientDepartmentId: order.currentDepartmentId,
+            title: `Deadline Approaching (< 48h): #${order.orderNumber}`,
+            message: `Order #${order.orderNumber} is due in 48 hours. Please expedite processing.`,
+            type: 'DEADLINE_APPROACHING'
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Deadline monitoring error:', err);
+  }
+};
 
 // @desc Get Dashboard Overview Metrics
 // @route GET /api/reports/dashboard
@@ -9,18 +93,28 @@ const getDashboardMetrics = async (req, res, next) => {
   try {
     const companyId = req.companyId;
 
+    // Trigger deadline monitoring check
+    await processDeadlineMonitoring(companyId);
+
     const totalOrders = await Order.countDocuments({ companyId });
     const inProgress = await Order.countDocuments({ companyId, status: 'In Progress' });
     const completed = await Order.countDocuments({ companyId, status: 'Completed' });
     const delayed = await Order.countDocuments({ companyId, status: 'Delayed' });
+    const pendingRevertsCount = await RevertRequest.countDocuments({ companyId, status: 'Pending' });
 
-    // Today's Orders count
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const todayOrdersCount = await Order.countDocuments({
+    // Orders near deadline (within 48 hours)
+    const now = new Date();
+    const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+    const nearDeadlineOrders = await Order.find({
       companyId,
-      creationTime: { $gte: startOfToday }
-    });
+      status: { $in: ['In Progress', 'Delayed', 'Pending Revert Approval'] },
+      dueDate: { $lte: in48Hours }
+    })
+      .populate('currentDepartmentId', 'name')
+      .populate('currentStageId', 'name')
+      .sort({ dueDate: 1 })
+      .limit(10);
 
     // Department loads summary
     const departments = await Department.find({ companyId }).sort({ orderIndex: 1 });
@@ -29,7 +123,7 @@ const getDashboardMetrics = async (req, res, next) => {
         const count = await Order.countDocuments({
           companyId,
           currentDepartmentId: dept._id,
-          status: { $in: ['In Progress', 'Delayed'] }
+          status: { $in: ['In Progress', 'Delayed', 'Pending Revert Approval'] }
         });
         return {
           _id: dept._id,
@@ -50,8 +144,10 @@ const getDashboardMetrics = async (req, res, next) => {
         inProgress,
         completed,
         delayed,
-        todayOrders: todayOrdersCount
+        pendingReverts: pendingRevertsCount,
+        nearDeadlineCount: nearDeadlineOrders.length
       },
+      nearDeadlineOrders,
       departmentLoads,
       recentActivity
     });

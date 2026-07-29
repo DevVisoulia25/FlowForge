@@ -15,8 +15,9 @@ import {
   FileSpreadsheet,
   History,
   RefreshCw,
-  Search,
-  Filter
+  RotateCcw,
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 
 const OwnerDashboard = () => {
@@ -83,7 +84,7 @@ const OwnerDashboard = () => {
         <Sidebar />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8">
-          {/* Header & Quick Action Buttons */}
+          {/* Header & Quick Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Owner Control Center</h1>
@@ -117,6 +118,30 @@ const OwnerDashboard = () => {
             </div>
           </div>
 
+          {/* Pending Revert Request Alert Notification Banner */}
+          {metrics?.summary?.pendingReverts > 0 && (
+            <div className="glass-panel p-4 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/30 to-slate-900 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+                  <RotateCcw className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">
+                    {metrics.summary.pendingReverts} Stage Revert Request(s) Pending Approval
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Department users requested stage reversals that require owner authorization.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/revert-requests')}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center space-x-1 shadow-md shadow-amber-600/20"
+              >
+                <span>Review Requests</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Metric Summary Cards */}
           {metrics && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -125,7 +150,6 @@ const OwnerDashboard = () => {
                 value={metrics.summary.totalOrders}
                 icon={Boxes}
                 color="indigo"
-                subtitle={`${metrics.summary.todayOrders} created today`}
               />
               <StatCard
                 title="In Progress"
@@ -142,12 +166,31 @@ const OwnerDashboard = () => {
                 subtitle="Finished orders"
               />
               <StatCard
-                title="Delayed"
+                title="Delayed / Overdue"
                 value={metrics.summary.delayed}
                 icon={AlertTriangle}
                 color="rose"
-                subtitle="Passed due date"
+                subtitle={`${metrics.summary.nearDeadlineCount} near deadline (<48h)`}
               />
+            </div>
+          )}
+
+          {/* Orders Near Deadline Section */}
+          {metrics?.nearDeadlineOrders && metrics.nearDeadlineOrders.length > 0 && (
+            <div className="glass-panel p-6 rounded-3xl border border-amber-500/30 space-y-4 bg-amber-950/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ShieldAlert className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-extrabold text-sm text-white">Orders Near Deadline ($\le$ 48 Hours)</h3>
+                </div>
+                <span className="text-xs text-amber-400 font-semibold">{metrics.nearDeadlineOrders.length} Urgent Orders</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {metrics.nearDeadlineOrders.map((ord) => (
+                  <OrderCard key={ord._id} order={ord} onCompleteStage={handleCompleteStage} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -225,9 +268,8 @@ const OwnerDashboard = () => {
                 <span className="text-xs text-slate-400">({orders.length})</span>
               </div>
 
-              {/* Status Filter Buttons */}
               <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
-                {['', 'In Progress', 'Completed', 'Delayed'].map((st) => (
+                {['', 'In Progress', 'Completed', 'Delayed', 'Pending Revert Approval'].map((st) => (
                   <button
                     key={st}
                     onClick={() => setStatusFilter(st)}
@@ -253,13 +295,6 @@ const OwnerDashboard = () => {
                 <Boxes className="w-12 h-12 text-slate-600 mx-auto" />
                 <p className="text-sm font-semibold text-slate-300">No Orders Found</p>
                 <p className="text-xs text-slate-500">Create a new order to start tracking production stages.</p>
-                <button
-                  onClick={() => navigate('/orders/create')}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs inline-flex items-center space-x-1.5 shadow-lg shadow-indigo-600/20 mt-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create First Order</span>
-                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

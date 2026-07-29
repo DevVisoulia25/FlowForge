@@ -10,7 +10,9 @@ import {
   BarChart3,
   History,
   Settings,
-  Workflow
+  Workflow,
+  RotateCcw,
+  UserCog
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -21,8 +23,10 @@ const Sidebar = () => {
     { to: '/owner-dashboard', label: 'Owner Overview', icon: LayoutDashboard },
     { to: '/orders/create', label: 'Create Order', icon: PackagePlus },
     { to: '/orders', label: 'All Orders', icon: Boxes },
+    { to: '/revert-requests', label: 'Revert Approvals', icon: RotateCcw },
     { to: '/departments', label: 'Departments', icon: Building2 },
     { to: '/stages', label: 'Production Stages', icon: GitCommit },
+    { to: '/account-settings', label: 'Account Settings', icon: UserCog },
     { to: '/reports', label: 'Reports & CSV', icon: BarChart3 },
     { to: '/activity-logs', label: 'Activity Logs', icon: History },
     { to: '/company-profile', label: 'Company Profile', icon: Settings }

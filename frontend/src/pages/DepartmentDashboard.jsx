@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import OrderCard from '../components/OrderCard';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Workflow, RefreshCw, CheckCircle2, Boxes, Clock } from 'lucide-react';
+import { Workflow, RefreshCw, CheckCircle2, Boxes, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 const DepartmentDashboard = () => {
   const { user, company } = useAuth();
@@ -35,7 +35,15 @@ const DepartmentDashboard = () => {
   const handleCompleteStage = async (orderId, remarks) => {
     try {
       await api.post(`/orders/${orderId}/complete-stage`, { remarks });
-      // Refresh list: completed order will disappear from this department!
+      fetchDepartmentOrders();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleRequestRevert = async (orderId, reason) => {
+    try {
+      await api.post('/revert-requests', { orderId, reason });
       fetchDepartmentOrders();
     } catch (error) {
       alert(error.message);
@@ -43,6 +51,16 @@ const DepartmentDashboard = () => {
   };
 
   const deptName = user?.department?.name || user?.name || 'Department';
+
+  // Urgent Orders filter (High priority or near deadline/overdue)
+  const urgentOrders = orders.filter((o) => {
+    if (o.priority === 'High' || o.status === 'Delayed') return true;
+    if (o.dueDate) {
+      const diffMs = new Date(o.dueDate).getTime() - Date.now();
+      return diffMs <= 48 * 60 * 60 * 1000;
+    }
+    return false;
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -66,7 +84,7 @@ const DepartmentDashboard = () => {
               </div>
               <h1 className="text-2xl font-extrabold text-white mt-1">{deptName} Workstation</h1>
               <p className="text-xs text-slate-400">
-                Displaying orders currently waiting or processing in {deptName}
+                Displaying orders currently assigned to {deptName}
               </p>
             </div>
           </div>
@@ -75,7 +93,7 @@ const DepartmentDashboard = () => {
             <div className="bg-slate-900/90 px-4 py-2 rounded-2xl border border-slate-800 flex items-center space-x-2">
               <Boxes className="w-5 h-5 text-indigo-400" />
               <div>
-                <p className="text-[10px] text-slate-400 font-semibold">Active Station Load</p>
+                <p className="text-[10px] text-slate-400 font-semibold">Station Load</p>
                 <p className="text-base font-extrabold text-white">{orders.length} Orders</p>
               </div>
             </div>
@@ -90,15 +108,40 @@ const DepartmentDashboard = () => {
           </div>
         </div>
 
-        {/* Workstation Orders Section */}
+        {/* My Urgent Orders Section (if any) */}
+        {urgentOrders.length > 0 && (
+          <div className="glass-panel p-6 rounded-3xl border border-rose-500/30 bg-rose-950/10 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5 text-rose-400" />
+                <h2 className="text-sm font-extrabold text-white">My Urgent Orders ({urgentOrders.length})</h2>
+              </div>
+              <span className="text-xs text-rose-300 font-semibold">High Priority or Due Soon</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {urgentOrders.map((ord) => (
+                <OrderCard
+                  key={ord._id}
+                  order={ord}
+                  onCompleteStage={handleCompleteStage}
+                  onRequestRevert={handleRequestRevert}
+                  isDepartmentView={true}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Workstation Queue */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-white flex items-center space-x-2">
               <Clock className="w-5 h-5 text-indigo-400" />
-              <span>Assigned Work Queue</span>
+              <span>Assigned Station Queue</span>
             </h2>
             <span className="text-xs text-slate-400">
-              Orders update automatically when completed
+              Orders move automatically when completed or reverted
             </span>
           </div>
 
@@ -111,7 +154,7 @@ const DepartmentDashboard = () => {
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
               <h3 className="text-base font-bold text-white">Queue Empty!</h3>
               <p className="text-xs text-slate-400">
-                No orders are currently waiting in {deptName}. New orders will automatically appear here once routed.
+                No orders are currently waiting in {deptName}. New orders will automatically appear here.
               </p>
             </div>
           ) : (
@@ -121,6 +164,7 @@ const DepartmentDashboard = () => {
                   key={ord._id}
                   order={ord}
                   onCompleteStage={handleCompleteStage}
+                  onRequestRevert={handleRequestRevert}
                   isDepartmentView={true}
                 />
               ))}
